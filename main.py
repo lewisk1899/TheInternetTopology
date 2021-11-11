@@ -1,15 +1,20 @@
-# Lewis Koplon
+# Lewis Koplon/Ramon Driesen
 # Professor Lazos
 # ECE 578
 # The Internet Topology
-import matplotlib.pyplot as plot
+import matplotlib.pyplot as plt
+import numpy as np
+
 
 class AS:
     def __init__(self, number):
         self.number = number
+        self.p2p = 0 # peer degree
+        self.p2c = 0 # customer degree
+        self.prov = 0 # provider degree
+        self.glob = 0 # global degree
         self.customers = []
-        self.providers = []
-        self.peers = []
+
 
 # Section 2.1 AS Classification
 def parse_file(file_name):
@@ -37,23 +42,23 @@ def parse_file(file_name):
 def pie_chart(amount):
     labels = "transit/access", "content", "enterprise"
     explode = (0, 0, 0)
-    figure1, ax1 = plot.subplots()  # creating the figure
+    figure1, ax1 = plt.subplots()  # creating the figure
     ax1.pie(amount, explode=explode, labels=labels, autopct='%1.1f%%', shadow=True, startangle=90)
     ax1.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
-    plot.title('Percentage Distribution of Autonomous System Classes in 2021')
-    plot.show()  # showing the figure
+    plt.title('Percentage Distribution of Autonomous System Classes in 2021')
+    plt.show()  # showing the figure
 
 
 def bar_graph(amount, total):
     labels = "transit/access", "content", "enterprise"
     percentages = [number / total for number in amount]
-    figure1 = plot.figure()
+    figure1 = plt.figure()
     ax1 = figure1.subplots  # creating the figure
-    plot.bar(labels, percentages)
-    plot.ylabel('Percentage')
-    plot.title('Percentage Distribution of Autonomous System Classes in 2015')
+    plt.bar(labels, percentages)
+    plt.ylabel('Percentage')
+    plt.title('Percentage Distribution of Autonomous System Classes in 2015')
 
-    plot.show()  # showing the figure
+    plt.show()  # showing the figure
 
 
 def as_classification():
@@ -67,26 +72,94 @@ def as_classification():
           as_count_2015)
     bar_graph(as_types_2015, as_count_2015)
 
+
+#############################################################################
 # Section 2.2 Topology Inference Through AS Links
-def parse_file_for_tree(filename):
+
+def histogram(x, title):
+    arr1 = []
+    arr2 = []
+    bins_list = [0, 1, 2, 5, 101, 201, 1000]
+    for as_i in x:
+        arr1.append(int(as_i.number))
+        arr2.append(as_i.glob)
+    hist, bin_edges = np.histogram(arr2, bins=bins_list)
+    fig, ax = plt.subplots()
+    ax.bar(range(len(hist)), hist, width=1, edgecolor='k')
+    ax.set_xlabel(title)
+    ax.set_ylabel('Number of Autonomous Systems')
+    ax.set_title(r'Number of Autonomous Systems that hold x', title)
+    ax.set_xticks(range(len(bins_list) - 1))
+    ax.set_xticklabels(['{} - {}'.format(bins_list[i], bins_list[i + 1]) for i, j in enumerate(hist)])
+    plt.show()
+
+
+def inc_degree(as_1, as_2, classification):
+    # it is just a peer to peer connection
+    if classification == '0':
+        as_1.p2p += 1
+        as_2.p2p += 1
+    # it is just a customer to provider connection
+    else:
+        as_1.prov += 1
+        as_1.customers.append(as_2) # as1 is the provider to as2, therefore we will add as2 to as1s customer list
+        as_2.p2c += 1
+    as_1.glob += 1
+    as_2.glob += 1
+
+
+def section_2b(filename):
+    list_as = []
+    list_as_objects = []
     file = open(filename)
-    AS_list = []
+    i = 0
+    # go through line by line
     for line in file:
+        # ignore the useless information
         if not line.startswith('#'):
-            line_split = line.strip().split('|') # p2c link: <provider-AS>|<customer-AS>| -1 |<source> or p2p link: <peer-AS>|<peer-AS>| 0 |<source>
-            if line_split[0] not in AS_list:
-                # create a new AS object and add it to the list
-                temp_AS_1 = AS(line_split[0]) # create a new object
-                AS_list.append(line_split[0]) # add to the list
+            line = line.strip()  # process the line
+            split_line = line.split("|")
+            # we haven't found this as in the list
+            if split_line[0] not in list_as:
+                list_as.append(split_line[0])
+                temp_as1 = AS(split_line[0])
+                list_as_objects.append(temp_as1)
             else:
-                # find the autonomous system
-            if line_split[2] not in AS_list:
-                # create a new AS object and add it to the list
-                temp_AS_2 = AS(line_split[2])  # create a new object
-                AS_list.append(line_split[2])  # add to the list
+                # find the as in our object list
+                for AutoSys1 in list_as_objects:
+                    if AutoSys1.number == split_line[0]:
+                        temp_as1 = AutoSys1
+            # we haven't found this as in the list
+            if split_line[1] not in list_as:
+                list_as.append(split_line[1])
+                temp_as2 = AS(split_line[1])
+                list_as_objects.append(temp_as2)
             else:
-                # find the autonomous system
+                # find the as
+                for AutoSys2 in list_as_objects:
+                    if AutoSys2.number == split_line[1]:
+                        temp_as2 = AutoSys2
+
+            inc_degree(temp_as1, temp_as2, split_line[2]) # function to handle altering respective private variables
+
+        i += 1
+        print(i)
+
+    return list_as_objects
 
 
-# Execution Section
-#as_classification()
+#################################################################################################################################
+
+def main():
+    # test
+    list_obj = section_2b("20211001.as-rel2.txt")
+    # list_obj = section_2b("testfor2b.txt")
+    # histogram(list_obj, "Global Node Degree")
+    histogram(list_obj, "Customer Degree")
+    # histogram(list_obj, "Peer Degree")
+    # histogram(list_obj, "Provider Degree")
+    # pie_chart(list_obj, "Class Distribution of of ASes")
+
+
+if __name__ == "__main__":
+    main()
