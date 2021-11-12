@@ -14,6 +14,7 @@ class AS:
         self.prov = 0  # provider degree
         self.glob = 0  # global degree
         self.customers = []
+        self.prefix_space_size = 0
 
 
 # Section 2.1 AS Classification
@@ -76,19 +77,19 @@ def as_classification():
 #############################################################################
 # Section 2.2 Topology Inference Through AS Links
 
-def histogram(x, title, type):
-    arr2 = []
+def histogram(as_list, title, _type):
+    data = []
     bins_list = [0, 1, 2, 5, 101, 201, 1000]  # bins
-    for as_i in x:
-        if type == 'Global':
-            arr2.append(as_i.glob)
-        elif type == 'Customer':
-            arr2.append(as_i.p2c)
-        elif type == 'Peer':
-            arr2.append(as_i.p2p)
-        elif type == 'Provider':
-            arr2.append(as_i.prov)
-    hist, bin_edges = np.histogram(arr2, bins=bins_list)  # histogram
+    for as_i in as_list:
+        if _type == 'Global':
+            data.append(as_i.glob)
+        elif _type == 'Customer':
+            data.append(as_i.p2c)
+        elif _type == 'Peer':
+            data.append(as_i.p2p)
+        elif _type == 'Provider':
+            data.append(as_i.prov)
+    hist, bin_edges = np.histogram(data, bins=bins_list)  # histogram
     fig, ax = plt.subplots()
     ax.bar(range(len(hist)), hist, width=1, edgecolor='k')
     ax.set_xlabel(title)  # x-axis title
@@ -150,7 +151,7 @@ def section_2b(filename):
             inc_degree(temp_as1, temp_as2, split_line[2])  # function to handle altering respective private variables
 
         i += 1
-        if i > 1000:
+        if i > 50000:
             break
 
         print(i)
@@ -158,7 +159,7 @@ def section_2b(filename):
     return list_as_objects
 
 
-def piechart_2(_as_list,title):
+def piechart_2(_as_list, title):
     data = [0, 0, 0]  # Enterprise, Content, Transit
     for _as in _as_list:
         if _as.p2p == 0 and _as.p2c == 0:
@@ -170,18 +171,53 @@ def piechart_2(_as_list,title):
     pie_chart(data, title)
 
 
+def find(as_number, as_list):
+    for _as in as_list:  # go through the list of as
+        if _as.number == as_number:  # find the matching as
+            return _as  # return the as
+        return None
+
+
+def parse_prefix_file(file, as_list):
+    file = open('prefixtest.txt')
+    i = 0
+    for line in file:
+        line = (line.strip()).split('\t')  # [IP prefix, prefix length, AS]
+        try:
+            _as = find(int(line[2]), as_list)  # return the _as
+        except _as is None:
+            _as.prefix_space_size += int(line[1])
+            print("AS number", line[2], "is not a valid AS")
+        i += 1
+        if i > 50000:
+            break
+
+
+def prefix_histogram(as_list, title):
+    data = []
+    for _as in as_list:
+        data.append(_as.prefix_space_size)
+    hist, bin_edges = np.histogram(data)  # histogram
+    fig, ax = plt.subplots()
+    ax.set_xlabel('Space Size')  # x-axis title
+    ax.set_ylabel('Frequency')  # y-axis title
+    title = "IP Space Size Frequency"
+    ax.set_title(title)  # title
+    plt.show()
 #################################################################################################################################
 
 def run():
-    as_classification()
+    # as_classification()
     # test
-    list_obj = section_2b("20211001.as-rel2.txt")
+    as_list = section_2b("20211001.as-rel2.txt")
     # list_obj = section_2b("testfor2b.txt")
-    histogram(list_obj, "Global Node Degree", 'Global')
-    histogram(list_obj, "Customer Degree", 'Customer')
-    histogram(list_obj, "Peer Degree", 'Peer')
-    histogram(list_obj, "Provider Degree", 'Provider')
+    # histogram(as_list, "Global Node Degree", 'Global')
+    # histogram(as_list, "Customer Degree", 'Customer')
+    # histogram(as_list, "Peer Degree", 'Peer')
+    # histogram(as_list, "Provider Degree", 'Provider')
 
-    piechart_2(list_obj, 'Percentage Distribution of Autonomous System Classes in 2021 According to Link Traversal')
+    # piechart_2(list_obj, 'Percentage Distribution of Autonomous System Classes in 2021 According to Link Traversal')
+    parse_prefix_file('prefixtest.txt', as_list)
+    prefix_histogram(as_list, "test")
 
 run()
