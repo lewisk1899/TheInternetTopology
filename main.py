@@ -4,6 +4,12 @@
 # The Internet Topology
 import matplotlib.pyplot as plt
 import numpy as np
+import pickle
+
+
+class AS_pckl:
+    def __init__(self, _as_list):
+        self.as_list = _as_list
 
 
 class AS:
@@ -14,6 +20,8 @@ class AS:
         self.prov = 0  # provider degree
         self.glob = 0  # global degree
         self.customers = []
+        self.peers = []
+        self.providers = []
         self.prefix_space_size = 0
 
 
@@ -106,10 +114,13 @@ def inc_degree(as_1, as_2, classification):
     if classification == '0':
         as_1.p2p += 1
         as_2.p2p += 1
+        as_1.peers.append(as_2) # append peers to eachother
+        as_2.peers.append(as_1)
     # it is just a customer to provider connection
     else:
         as_1.prov += 1
         as_1.customers.append(as_2)  # as1 is the provider to as2, therefore we will add as2 to as1s customer list
+        as_2.providers.append(as_1)  # as2 is a provider
         as_2.p2c += 1
 
     as_1.glob += 1
@@ -181,6 +192,7 @@ def find(as_number, as_list):
 def parse_prefix_file(file, as_list):
     file = open('prefixtest.txt')
     i = 0
+    k = 0
     for line in file:
         line = (line.strip()).split('\t')  # [IP prefix, prefix length, AS]
         try:
@@ -188,7 +200,10 @@ def parse_prefix_file(file, as_list):
         except _as is None:
             _as.prefix_space_size += int(line[1])
             print("AS number", line[2], "is not a valid AS")
+            k += 1
         i += 1
+        print(i)
+        print(k)
         if i > 50000:
             break
 
@@ -197,19 +212,66 @@ def prefix_histogram(as_list, title):
     data = []
     for _as in as_list:
         data.append(_as.prefix_space_size)
+    print(max(data))
     hist, bin_edges = np.histogram(data)  # histogram
     fig, ax = plt.subplots()
+    ax.bar(range(len(hist)), hist, width=1, edgecolor='k')
     ax.set_xlabel('Space Size')  # x-axis title
     ax.set_ylabel('Frequency')  # y-axis title
     title = "IP Space Size Frequency"
     ax.set_title(title)  # title
     plt.show()
+
+
 #################################################################################################################################
+###########################Another Part
+def proj2_c(arr1):
+    for y in arr1:
+        print(y.number, "and its degree ", y.glob)
+    print("##############################")
+    print("And now sorted")
+    print("##############################")
+    sortedbyDeg = sorted(arr1, key=lambda x: x.glob, reverse=True)
+    for x in sortedbyDeg:
+        print(x.number, "and its degree ", x.glob)
+
+def clique(filename):
+    cliq_list = []
+    file = open(filename)
+    #check1 only true for first two lines
+    check1 = True
+    for line in file:
+        if not line.startswith("#"):
+            line.strip()
+            split_line = line.split("|")
+            if (check1):
+                cliq_list.append(split_line[0])
+                cliq_list.append(split_line[1])
+                check1 = False
+            else:
+                if ((split_line[0] not in cliq_list) and (split_line[1] not in cliq_list)):
+                    print("End of Click list")
+                    break
+                else:
+                    if (split_line[0] not in cliq_list):
+                        cliq_list.append(split_line[0])
+                    else:
+                        cliq_list.append(split_line[1])
+
+    print(cliq_list)
+    print("Size of list: ", len(cliq_list))
+######################################
+def get_data():
+    as_list = section_2b("20211001.as-rel2.txt")
+    as_pickle = AS_pckl(as_list)
+    with open('as_list.pkl', 'wb') as outp:
+        pickle.dump(as_pickle, outp, pickle.HIGHEST_PROTOCOL)
+    del as_pickle
 
 def run():
-    # as_classification()
-    # test
     as_list = section_2b("20211001.as-rel2.txt")
+
+    # as_classification()
     # list_obj = section_2b("testfor2b.txt")
     # histogram(as_list, "Global Node Degree", 'Global')
     # histogram(as_list, "Customer Degree", 'Customer')
@@ -219,5 +281,6 @@ def run():
     # piechart_2(list_obj, 'Percentage Distribution of Autonomous System Classes in 2021 According to Link Traversal')
     parse_prefix_file('prefixtest.txt', as_list)
     prefix_histogram(as_list, "test")
+
 
 run()
