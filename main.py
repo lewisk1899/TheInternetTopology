@@ -7,11 +7,6 @@ import numpy as np
 import pickle
 
 
-class AS_pckl:
-    def __init__(self, _as_list):
-        self.as_list = _as_list
-
-
 class AS:
     def __init__(self, number):
         self.number = number
@@ -114,7 +109,7 @@ def inc_degree(as_1, as_2, classification):
     if classification == '0':
         as_1.p2p += 1
         as_2.p2p += 1
-        as_1.peers.append(as_2) # append peers to eachother
+        as_1.peers.append(as_2)  # append peers to eachother
         as_2.peers.append(as_1)
     # it is just a customer to provider connection
     else:
@@ -235,52 +230,66 @@ def proj2_c(arr1):
     for x in sortedbyDeg:
         print(x.number, "and its degree ", x.glob)
 
+
 def clique(filename):
     cliq_list = []
     file = open(filename)
-    #check1 only true for first two lines
+    # check1 only true for first two lines
     check1 = True
     for line in file:
         if not line.startswith("#"):
             line.strip()
             split_line = line.split("|")
-            if (check1):
+            if check1:
                 cliq_list.append(split_line[0])
                 cliq_list.append(split_line[1])
                 check1 = False
             else:
-                if ((split_line[0] not in cliq_list) and (split_line[1] not in cliq_list)):
+                if (split_line[0] not in cliq_list) and (split_line[1] not in cliq_list):
                     print("End of Click list")
                     break
                 else:
-                    if (split_line[0] not in cliq_list):
+                    if split_line[0] not in cliq_list:
                         cliq_list.append(split_line[0])
                     else:
                         cliq_list.append(split_line[1])
 
     print(cliq_list)
     print("Size of list: ", len(cliq_list))
+
+
 ######################################
 def get_data():
     as_list = section_2b("20211001.as-rel2.txt")
-    as_pickle = AS_pckl(as_list)
     with open('as_list.pkl', 'wb') as outp:
-        pickle.dump(as_pickle, outp, pickle.HIGHEST_PROTOCOL)
-    del as_pickle
+        pickle.dump(as_list, outp, pickle.HIGHEST_PROTOCOL)
+    del as_list
+
+
+def load_data():
+    with open('as_list.pkl', 'rb') as inp:
+        as_list = pickle.load(inp)
+    return as_list
+
 
 def run():
-    as_list = section_2b("20211001.as-rel2.txt")
+    choice = input(
+        "Do you want to collect data or view the graphs of previously collected data? (y for collect data/n for view graphs)")
+    if choice.strip() == 'y':
+        get_data()
+        print("Data has been retrieved")
+    elif choice.strip() == 'n':
+        as_list = load_data()
+        # as_classification()
+        # list_obj = section_2b("testfor2b.txt")
+        # histogram(as_list, "Global Node Degree", 'Global')
+        # histogram(as_list, "Customer Degree", 'Customer')
+        # histogram(as_list, "Peer Degree", 'Peer')
+        # histogram(as_list, "Provider Degree", 'Provider')
 
-    # as_classification()
-    # list_obj = section_2b("testfor2b.txt")
-    # histogram(as_list, "Global Node Degree", 'Global')
-    # histogram(as_list, "Customer Degree", 'Customer')
-    # histogram(as_list, "Peer Degree", 'Peer')
-    # histogram(as_list, "Provider Degree", 'Provider')
-
-    # piechart_2(list_obj, 'Percentage Distribution of Autonomous System Classes in 2021 According to Link Traversal')
-    parse_prefix_file('prefixtest.txt', as_list)
-    prefix_histogram(as_list, "test")
+        # piechart_2(list_obj, 'Percentage Distribution of Autonomous System Classes in 2021 According to Link Traversal')
+        parse_prefix_file('prefixtest.txt', as_list)
+        prefix_histogram(as_list, "test")
 
 
 run()
