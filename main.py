@@ -5,7 +5,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pickle
-
+import sys
 
 class AS:
     def __init__(self, number):
@@ -155,11 +155,9 @@ def section_2b(filename):
                         temp_as2 = AutoSys2
 
             inc_degree(temp_as1, temp_as2, split_line[2])  # function to handle altering respective private variables
-
         i += 1
         if i > 50000:
             break
-
         print(i)
 
     return list_as_objects
@@ -199,8 +197,6 @@ def parse_prefix_file(file, as_list):
         i += 1
         print(i)
         print(k)
-        if i > 50000:
-            break
 
 
 def prefix_histogram(as_list, title):
@@ -260,19 +256,41 @@ def clique(filename):
 
 ######################################
 def get_data():
+    # splitting the pickle file into a bunch of different files because the size of the one file is too large to be handled
     as_list = section_2b("20211001.as-rel2.txt")
-    with open('as_list.pkl', 'wb') as outp:
-        pickle.dump(as_list, outp, pickle.HIGHEST_PROTOCOL)
+    as_list_split = np.array_split(as_list, 4)
+    with open('as_list_1.pkl', 'wb') as outp:
+        pickle.dump(as_list_split[0], outp, pickle.HIGHEST_PROTOCOL)
+    with open('as_list_2.pkl', 'wb') as outp:
+        pickle.dump(as_list_split[1], outp, pickle.HIGHEST_PROTOCOL)
+    with open('as_list_3.pkl', 'wb') as outp:
+        pickle.dump(as_list_split[2], outp, pickle.HIGHEST_PROTOCOL)
+    with open('as_list_4.pkl', 'wb') as outp:
+        pickle.dump(as_list_split[3], outp, pickle.HIGHEST_PROTOCOL)
     del as_list
 
 
 def load_data():
-    with open('as_list.pkl', 'rb') as inp:
-        as_list = pickle.load(inp)
-    return as_list
+    x = []
+    print(len(x))
+    with open('as_list_1.pkl', 'rb') as inp:
+        x += list(pickle.load(inp))
+        print(len(x))
+    with open('as_list_2.pkl', 'rb') as inp:
+        x += list(pickle.load(inp))
+        print(len(x))
+    with open('as_list_3.pkl', 'rb') as inp:
+        x += list(pickle.load(inp))
+        print(len(x))
+    with open('as_list_4.pkl', 'rb') as inp:
+        x += list(pickle.load(inp))
+        print(len(x))
+    return x
+
 
 
 def run():
+    sys.setrecursionlimit(1000000)
     choice = input(
         "Do you want to collect data or view the graphs of previously collected data? (y for collect data/n for view graphs)")
     if choice.strip() == 'y':
@@ -280,6 +298,9 @@ def run():
         print("Data has been retrieved")
     elif choice.strip() == 'n':
         as_list = load_data()
+        print("Data has been loaded")
+        print(as_list[0].number)
+        print(as_list[len(as_list)-1].number)
         # as_classification()
         # list_obj = section_2b("testfor2b.txt")
         # histogram(as_list, "Global Node Degree", 'Global')
@@ -288,8 +309,8 @@ def run():
         # histogram(as_list, "Provider Degree", 'Provider')
 
         # piechart_2(list_obj, 'Percentage Distribution of Autonomous System Classes in 2021 According to Link Traversal')
-        parse_prefix_file('prefixtest.txt', as_list)
-        prefix_histogram(as_list, "test")
+        #parse_prefix_file('prefixtest.txt', as_list)
+        #prefix_histogram(as_list, "test")
 
 
 run()
