@@ -260,7 +260,7 @@ def proj2_c(as_list):
 
     print("##################################Organization Mapping##############################################")
     for pair in tuple_list:
-        file = open("oridtoname.txt", encoding="utf8")
+        file = open("orgidtoname.txt", encoding="utf8")
         for line in file:
             line = line.split('|')
             # if we find the organization id in the file
