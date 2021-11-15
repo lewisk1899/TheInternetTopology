@@ -158,7 +158,7 @@ def section_2b(filename):
 
             inc_degree(temp_as1, temp_as2, split_line[2])  # function to handle altering respective private variables
         i += 1
-        if i > 225000:
+        if i > 500000:
             break
         print(i)
 
@@ -218,12 +218,14 @@ def prefix_histogram(as_list, title):
 
 #################################################################################################################################
 ########################### Inference of Tier-1 ASes
-def connected(_as_in_clique, _as):
-    if (_as in _as_in_clique.customers or _as in _as_in_clique.providers or _as in _as_in_clique.peers) and _as != _as_in_clique:
-        print("AS:", str(_as.number), "IS IN AS:", _as_in_clique.number)
-        return True
-    print("AS:", str(_as.number), "NOT IN AS:", str(_as_in_clique.number))
-    return False
+def connected(clique, _as):
+    connected = True
+    for _as_from_clique in clique:
+        if not ((_as in _as_from_clique.customers or _as in _as_from_clique.providers or _as in _as_from_clique.peers) and _as != _as_from_clique):
+            print("AS:", str(_as.number), "NOT IN AS:", _as_from_clique.number)
+            connected = False
+        print("AS:", str(_as.number), "IS IN AS:", str(_as_from_clique.number))
+    return connected
 
 
 def proj2_c(as_list):
@@ -235,30 +237,36 @@ def proj2_c(as_list):
 
     # clique portion
     as_list_sorted = as_list_sorted[:50]
-    clique = [as_list_sorted[0]] # clique is as 1
-    for connected_as in clique:
-        print("Clique length: ", str(len(clique)))
-        for _as in as_list_sorted:
-            if connected(connected_as, _as):  # check if any sort of connection in the clique
-                clique.append(_as)  # connect to the clique if so
+    clique = [as_list_sorted.pop(0)] # clique as with highest global degree
+    print("Clique length: ", str(len(clique)))
+    index = 0
+    for _as in as_list_sorted:
+        if connected(clique, _as):  # check if any sort of connection in the clique
+            clique.append(as_list_sorted.pop(index))  # connect to the clique if so
+        index += 1
     # now we need to get the information of who belongs to what so we can build a table in google docs
     print("This is the length of the clique", str(len(clique)))
-    file = open("identifier.txt")
     tuple_list = []
+    print("##############################Finding Pairs############################")
     for _as in clique:  # traverse through the cliques
+        print("###############################AS NUMBER", str(_as.number), "############################")
+        file = open("identifier.txt")
         for line in file:  # try to find the match in the files
             line = line.split('|')
             if str(_as.number) == line[0]:
                 tuple_list.append((str(_as.number), line[3]))
-    file.close()
-    file = open("ordidtoname.txt")
+        file.close()
+        print(tuple_list)
+
     print("##################################Organization Mapping##############################################")
     for pair in tuple_list:
+        file = open("oridtoname.txt", encoding="utf8")
         for line in file:
             line = line.split('|')
             # if we find the organization id in the file
             if pair[1] == line[0]:  # found organization id
-                print("AS Number", pair[0], " belongs to", line[2])
+                print("AS Number", pair[0], "belongs to", line[2])
+        file.close()
 
 #####################################
 def get_data():
@@ -334,30 +342,30 @@ def load_data():
 def run():
     start_time = time.time()
     sys.setrecursionlimit(1000000)
+    as_list = section_2b("20211001.as-rel2.txt")
+    # choice = input(
+    #     "Do you want to collect data or view the graphs of previously collected data? (y for collect data/n for view graphs)")
+    # if choice.strip() == 'y':
+    #     get_data()
+    #     print("Data has been retrieved")
+    # elif choice.strip() == 'n':
+    #     as_list = load_data()
+    #     print("Data has been loaded")
+    #     print("Number of AS's:", str(len(as_list)))
+    #     print(as_list[0].number)
+    #     print(as_list[len(as_list) - 1].number)
 
-    choice = input(
-        "Do you want to collect data or view the graphs of previously collected data? (y for collect data/n for view graphs)")
-    if choice.strip() == 'y':
-        get_data()
-        print("Data has been retrieved")
-    elif choice.strip() == 'n':
-        as_list = load_data()
-        print("Data has been loaded")
-        print("Number of AS's:", str(len(as_list)))
-        print(as_list[0].number)
-        print(as_list[len(as_list) - 1].number)
-
-        # as_classification()
-        # list_obj = section_2b("testfor2b.txt")
-        # histogram(as_list, "Global Node Degree", 'Global')
-        # histogram(as_list, "Customer Degree", 'Customer')
-        # histogram(as_list, "Peer Degree", 'Peer')
-        # histogram(as_list, "Provider Degree", 'Provider')
-        # piechart_2(list_obj, 'Percentage Distribution of Autonomous System Classes in 2021 According to Link Traversal')
-        # parse_prefix_file('prefixtest.txt', as_list)
-        # prefix_histogram(as_list, "test")
-        proj2_c(as_list)
-        print("--- %s seconds ---" % (time.time() - start_time))
+    as_classification()
+    list_obj = section_2b("testfor2b.txt")
+    histogram(as_list, "Global Node Degree", 'Global')
+    histogram(as_list, "Customer Degree", 'Customer')
+    histogram(as_list, "Peer Degree", 'Peer')
+    histogram(as_list, "Provider Degree", 'Provider')
+    piechart_2(list_obj, 'Percentage Distribution of Autonomous System Classes in 2021 According to Link Traversal')
+    parse_prefix_file('prefixtest.txt', as_list)
+    prefix_histogram(as_list, "test")
+    proj2_c(as_list)
+    print("--- %s seconds ---" % (time.time() - start_time))
 
 
 run()
