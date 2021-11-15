@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pickle
 import sys
+import time
+
 
 class AS:
     def __init__(self, number):
@@ -156,7 +158,7 @@ def section_2b(filename):
 
             inc_degree(temp_as1, temp_as2, split_line[2])  # function to handle altering respective private variables
         i += 1
-        if i > 50000:
+        if i > 225000:
             break
         print(i)
 
@@ -215,82 +217,124 @@ def prefix_histogram(as_list, title):
 
 
 #################################################################################################################################
-###########################Another Part
-def proj2_c(arr1):
-    for y in arr1:
-        print(y.number, "and its degree ", y.glob)
-    print("##############################")
-    print("And now sorted")
-    print("##############################")
-    sortedbyDeg = sorted(arr1, key=lambda x: x.glob, reverse=True)
-    for x in sortedbyDeg:
-        print(x.number, "and its degree ", x.glob)
+########################### Inference of Tier-1 ASes
+def connected(_as_in_clique, _as):
+    if (_as in _as_in_clique.customers or _as in _as_in_clique.providers or _as in _as_in_clique.peers) and _as != _as_in_clique:
+        print("AS:", str(_as.number), "IS IN AS:", _as_in_clique.number)
+        return True
+    print("AS:", str(_as.number), "NOT IN AS:", str(_as_in_clique.number))
+    return False
 
 
-def clique(filename):
-    cliq_list = []
-    file = open(filename)
-    # check1 only true for first two lines
-    check1 = True
-    for line in file:
-        if not line.startswith("#"):
-            line.strip()
-            split_line = line.split("|")
-            if check1:
-                cliq_list.append(split_line[0])
-                cliq_list.append(split_line[1])
-                check1 = False
-            else:
-                if (split_line[0] not in cliq_list) and (split_line[1] not in cliq_list):
-                    print("End of Click list")
-                    break
-                else:
-                    if split_line[0] not in cliq_list:
-                        cliq_list.append(split_line[0])
-                    else:
-                        cliq_list.append(split_line[1])
+def proj2_c(as_list):
+    for _as in as_list:
+        print(_as.number, "and its degree ", _as.glob)
+    as_list_sorted = sorted(as_list, key=lambda x: x.glob, reverse=True)  # sorted list (R)
+    for _as in as_list_sorted:
+        print(_as.number, "and its degree ", _as.glob)
 
-    print(cliq_list)
-    print("Size of list: ", len(cliq_list))
+    # clique portion
+    as_list_sorted = as_list_sorted[:50]
+    clique = [as_list_sorted[0]] # clique is as 1
+    for connected_as in clique:
+        print("Clique length: ", str(len(clique)))
+        for _as in as_list_sorted:
+            if connected(connected_as, _as):  # check if any sort of connection in the clique
+                clique.append(_as)  # connect to the clique if so
+    # now we need to get the information of who belongs to what so we can build a table in google docs
+    print("This is the length of the clique", str(len(clique)))
+    file = open("identifier.txt")
+    tuple_list = []
+    for _as in clique:  # traverse through the cliques
+        for line in file:  # try to find the match in the files
+            line = line.split('|')
+            if str(_as.number) == line[0]:
+                tuple_list.append((str(_as.number), line[3]))
+    file.close()
+    file = open("ordidtoname.txt")
+    print("##################################Organization Mapping##############################################")
+    for pair in tuple_list:
+        for line in file:
+            line = line.split('|')
+            # if we find the organization id in the file
+            if pair[1] == line[0]:  # found organization id
+                print("AS Number", pair[0], " belongs to", line[2])
 
-
-######################################
+#####################################
 def get_data():
     # splitting the pickle file into a bunch of different files because the size of the one file is too large to be handled
     as_list = section_2b("20211001.as-rel2.txt")
-    as_list_split = np.array_split(as_list, 4)
-    with open('as_list_1.pkl', 'wb') as outp:
-        pickle.dump(as_list_split[0], outp, pickle.HIGHEST_PROTOCOL)
-    with open('as_list_2.pkl', 'wb') as outp:
-        pickle.dump(as_list_split[1], outp, pickle.HIGHEST_PROTOCOL)
-    with open('as_list_3.pkl', 'wb') as outp:
-        pickle.dump(as_list_split[2], outp, pickle.HIGHEST_PROTOCOL)
-    with open('as_list_4.pkl', 'wb') as outp:
-        pickle.dump(as_list_split[3], outp, pickle.HIGHEST_PROTOCOL)
-    del as_list
+    as_list_split = np.array_split(as_list, 5)
+    try:
+        with open('as_list_1.pkl', 'wb') as outp:
+            pickle.dump(as_list_split[0], outp, pickle.HIGHEST_PROTOCOL)
+        with open('as_list_2.pkl', 'wb') as outp:
+            pickle.dump(as_list_split[1], outp, pickle.HIGHEST_PROTOCOL)
+        with open('as_list_3.pkl', 'wb') as outp:
+            pickle.dump(as_list_split[2], outp, pickle.HIGHEST_PROTOCOL)
+        with open('as_list_4.pkl', 'wb') as outp:
+            pickle.dump(as_list_split[3], outp, pickle.HIGHEST_PROTOCOL)
+        with open('as_list_5.pkl', 'wb') as outp:
+            pickle.dump(as_list_split[4], outp, pickle.HIGHEST_PROTOCOL)
+        del as_list
+    except MemoryError:
+        print("AS List size: ", sys.getsizeof(as_list_split))
+        i = 0
+        for as_sub_list in as_list_split:
+            print("AS sub list number ", str(i), "has a size of", sys.getsizeof(as_sub_list), "MB")
+            i += 1
 
 
 def load_data():
     x = []
     print(len(x))
     with open('as_list_1.pkl', 'rb') as inp:
-        x += list(pickle.load(inp))
+        while True:
+            try:
+                x += list(pickle.load(inp))
+            except EOFError:
+                break
+        inp.close()
         print(len(x))
     with open('as_list_2.pkl', 'rb') as inp:
-        x += list(pickle.load(inp))
+        while True:
+            try:
+                x += list(pickle.load(inp))
+            except EOFError:
+                break
+        inp.close()
         print(len(x))
     with open('as_list_3.pkl', 'rb') as inp:
-        x += list(pickle.load(inp))
+        while True:
+            try:
+                x += list(pickle.load(inp))
+            except EOFError:
+                break
+        inp.close()
         print(len(x))
     with open('as_list_4.pkl', 'rb') as inp:
-        x += list(pickle.load(inp))
+        while True:
+            try:
+                x += list(pickle.load(inp))
+            except EOFError:
+                break
+        inp.close()
+        print(len(x))
+    with open('as_list_5.pkl', 'rb') as inp:
+        while True:
+            try:
+                x += list(pickle.load(inp))
+            except EOFError:
+                break
+        inp.close()
         print(len(x))
     return x
 
 
-
 def run():
+    start_time = time.time()
     sys.setrecursionlimit(1000000)
+
     choice = input(
         "Do you want to collect data or view the graphs of previously collected data? (y for collect data/n for view graphs)")
     if choice.strip() == 'y':
@@ -299,18 +343,21 @@ def run():
     elif choice.strip() == 'n':
         as_list = load_data()
         print("Data has been loaded")
+        print("Number of AS's:", str(len(as_list)))
         print(as_list[0].number)
-        print(as_list[len(as_list)-1].number)
+        print(as_list[len(as_list) - 1].number)
+
         # as_classification()
         # list_obj = section_2b("testfor2b.txt")
         # histogram(as_list, "Global Node Degree", 'Global')
         # histogram(as_list, "Customer Degree", 'Customer')
         # histogram(as_list, "Peer Degree", 'Peer')
         # histogram(as_list, "Provider Degree", 'Provider')
-
         # piechart_2(list_obj, 'Percentage Distribution of Autonomous System Classes in 2021 According to Link Traversal')
-        #parse_prefix_file('prefixtest.txt', as_list)
-        #prefix_histogram(as_list, "test")
+        # parse_prefix_file('prefixtest.txt', as_list)
+        # prefix_histogram(as_list, "test")
+        proj2_c(as_list)
+        print("--- %s seconds ---" % (time.time() - start_time))
 
 
 run()
