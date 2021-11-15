@@ -16,10 +16,10 @@ class AS:
         self.p2c = 0  # customer degree
         self.prov = 0  # provider degree
         self.glob = 0  # global degree
+        self.ip_space = 0
         self.customers = []
         self.peers = []
         self.providers = []
-        self.prefix_space_size = 0
 
 
 # Section 2.1 AS Classification
@@ -190,12 +190,23 @@ def parse_prefix_file(file, as_list):
     k = 0
     for line in file:
         line = (line.strip()).split('\t')  # [IP prefix, prefix length, AS]
-        try:
-            _as = find(int(line[2]), as_list)  # return the _as
-        except _as is None:
-            _as.prefix_space_size += int(line[1])
-            print("AS number", line[2], "is not a valid AS")
-            k += 1
+        if '_' in line[2]: # we have a multi origin AS
+            multi_origin_as = line[2].split('_')
+            # _as.ip_space += 2 ** int(line[1]) - 1  # adding to the IP space size
+            try:
+                _as = find(int(multi_origin_as[0]), as_list)  # return the _as
+                _as.ip_space += 2 ** int(line[1]) - 1  # adding to the IP space size
+            except _as is None:
+                print("AS number", line[2], "is not a valid AS")
+                k += 1
+        else: # single origin as
+            try:
+                _as = find(int(line[2]), as_list)  # return the _as
+                _as.ip_space += 2 ** int(line[1]) - 1  # adding to the IP space size
+            except _as is None:
+                print("AS number", line[2], "is not a valid AS")
+                k += 1
+
         i += 1
         print(i)
         print(k)
@@ -268,7 +279,34 @@ def proj2_c(as_list):
                 print("AS Number", pair[0], "belongs to", line[2])
         file.close()
 
-#####################################
+##########################################################################
+#######################Customer Cone######################################
+def customer_cone(node):
+    # keep track of the nodes we have visited
+
+    visited = []
+    queue = node.customers
+    # traverse through the tree
+    visited.append(node) # we visited the top node
+    queue += node.customers # we need to create a queue to visit other nodes
+    customer_cone = 0 # this is the metric we are measuring by
+    for traversal_node in queue: # we will visit each node in the queue
+        if  traversal_node not in visited:
+            visited.append(traversal_node)
+            queue += traversal_node.customers
+            customer_cone += 1
+
+    print(str(customer_cone))
+
+def customer_cone_for_top_AS(sorted_as_list):
+    for _as in sorted_as_list:
+        print("###################Customer Cone for AS:", str(_as.number), "######################################")
+        customer_cone(_as)
+        print("#################################################################################")
+
+
+##########################################################################
+
 def get_data():
     # splitting the pickle file into a bunch of different files because the size of the one file is too large to be handled
     as_list = section_2b("20211001.as-rel2.txt")
@@ -342,7 +380,8 @@ def load_data():
 def run():
     start_time = time.time()
     sys.setrecursionlimit(1000000)
-    as_list = section_2b("20211001.as-rel2.txt")
+    # as_list = section_2b("20211001.as-rel2.txt")
+    as_list = section_2b("testfor2b.txt")
     # choice = input(
     #     "Do you want to collect data or view the graphs of previously collected data? (y for collect data/n for view graphs)")
     # if choice.strip() == 'y':
@@ -355,16 +394,21 @@ def run():
     #     print(as_list[0].number)
     #     print(as_list[len(as_list) - 1].number)
     # fix
-    as_classification()
-    list_obj = section_2b("testfor2b.txt")
-    histogram(as_list, "Global Node Degree", 'Global')
-    histogram(as_list, "Customer Degree", 'Customer')
-    histogram(as_list, "Peer Degree", 'Peer')
-    histogram(as_list, "Provider Degree", 'Provider')
-    piechart_2(list_obj, 'Percentage Distribution of Autonomous System Classes in 2021 According to Link Traversal')
-    parse_prefix_file('prefixtest.txt', as_list)
-    prefix_histogram(as_list, "test")
-    proj2_c(as_list)
+    # as_classification()
+    # list_obj = section_2b("testfor2b.txt")
+    # histogram(as_list, "Global Node Degree", 'Global')
+    # histogram(as_list, "Customer Degree", 'Customer')
+    # histogram(as_list, "Peer Degree", 'Peer')
+    # histogram(as_list, "Provider Degree", 'Provider')
+    # piechart_2(list_obj, 'Percentage Distribution of Autonomous System Classes in 2021 According to Link Traversal')
+    # parse_prefix_file('prefixtest.txt', as_list)
+    # prefix_histogram(as_list, "test")
+    # proj2_c(as_list)
+
+    as_list_sorted = sorted(as_list, key=lambda x: x.glob, reverse=True)  # sorted list (R)
+    print(str(as_list[0].number))
+    customer_cone_for_top_AS(as_list_sorted[:15])
+
     print("--- %s seconds ---" % (time.time() - start_time))
 
 
