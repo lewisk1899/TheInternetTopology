@@ -354,7 +354,7 @@ def run():
     #     print("Number of AS's:", str(len(as_list)))
     #     print(as_list[0].number)
     #     print(as_list[len(as_list) - 1].number)
-
+    # fix
     as_classification()
     list_obj = section_2b("testfor2b.txt")
     histogram(as_list, "Global Node Degree", 'Global')
