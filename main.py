@@ -12,6 +12,7 @@ import time
 class AS:
     def __init__(self, number):
         self.number = number
+        self.name = ""
         self.p2p = 0  # peer degree
         self.p2c = 0  # customer degree
         self.prov = 0  # provider degree
@@ -20,6 +21,7 @@ class AS:
         self.customers = []
         self.peers = []
         self.providers = []
+        self.prefixs = []
 
 
 # Section 2.1 AS Classification
@@ -190,19 +192,23 @@ def parse_prefix_file(file, as_list):
     k = 0
     for line in file:
         line = (line.strip()).split('\t')  # [IP prefix, prefix length, AS]
-        if '_' in line[2]: # we have a multi origin AS
+        if '_' in line[2]:  # we have a multi origin AS
             multi_origin_as = line[2].split('_')
             # _as.ip_space += 2 ** int(line[1]) - 1  # adding to the IP space size
             try:
-                _as = find(int(multi_origin_as[0]), as_list)  # return the _as
-                _as.ip_space += 2 ** int(line[1]) - 1  # adding to the IP space size
+                # in the case of a multi origin as
+                for multi_as in multi_origin_as:
+                    _as = find(int(multi_as), as_list)  # return the _as
+                    _as.ip_space += 2 ** (32 - int(line[1]))  # adding to the IP space size 2**(32 - (prefix length))
+                    _as.prefixs.append(line[0])  # number of prefixes
             except _as is None:
                 print("AS number", line[2], "is not a valid AS")
                 k += 1
-        else: # single origin as
+        else:  # single origin as
             try:
                 _as = find(int(line[2]), as_list)  # return the _as
-                _as.ip_space += 2 ** int(line[1]) - 1  # adding to the IP space size
+                _as.ip_space += 2 ** (32 - int(line[1]))  # adding to the IP space size
+                _as.prefixs.append(line[0])  # number of prefixes
             except _as is None:
                 print("AS number", line[2], "is not a valid AS")
                 k += 1
@@ -232,7 +238,8 @@ def prefix_histogram(as_list, title):
 def connected(clique, _as):
     connected = True
     for _as_from_clique in clique:
-        if not ((_as in _as_from_clique.customers or _as in _as_from_clique.providers or _as in _as_from_clique.peers) and _as != _as_from_clique):
+        if not ((
+                        _as in _as_from_clique.customers or _as in _as_from_clique.providers or _as in _as_from_clique.peers) and _as != _as_from_clique):
             print("AS:", str(_as.number), "NOT IN AS:", _as_from_clique.number)
             connected = False
         print("AS:", str(_as.number), "IS IN AS:", str(_as_from_clique.number))
@@ -240,15 +247,17 @@ def connected(clique, _as):
 
 
 def proj2_c(as_list):
-    for _as in as_list:
-        print(_as.number, "and its degree ", _as.glob)
     as_list_sorted = sorted(as_list, key=lambda x: x.glob, reverse=True)  # sorted list (R)
+    total_ip_space = 0
+    total_prefixs = 0
     for _as in as_list_sorted:
-        print(_as.number, "and its degree ", _as.glob)
+        # we are going to count up the total ipspace, as well as the total prefixs
+        total_prefixs += len(_as.prefixs)
+        total_ip_space += _as.ip_space
 
     # clique portion
     as_list_sorted = as_list_sorted[:50]
-    clique = [as_list_sorted.pop(0)] # clique as with highest global degree
+    clique = [as_list_sorted.pop(0)]  # clique as with highest global degree
     print("Clique length: ", str(len(clique)))
     index = 0
     for _as in as_list_sorted:
@@ -265,9 +274,8 @@ def proj2_c(as_list):
         for line in file:  # try to find the match in the files
             line = line.split('|')
             if str(_as.number) == line[0]:
-                tuple_list.append((str(_as.number), line[3]))
+                tuple_list.append((_as, line[3]))
         file.close()
-        print(tuple_list)
 
     print("##################################Organization Mapping##############################################")
     for pair in tuple_list:
@@ -276,32 +284,42 @@ def proj2_c(as_list):
             line = line.split('|')
             # if we find the organization id in the file
             if pair[1] == line[0]:  # found organization id
-                print("AS Number", pair[0], "belongs to", line[2])
+                print("AS Number", pair[0].number, "belongs to", line[2])
+                pair[0].name = line[2]  # add the name to this _as
         file.close()
+
+    return as_list_sorted, total_prefixs, total_ip_space
+
 
 ##########################################################################
 #######################Customer Cone######################################
-def customer_cone(node):
+def customer_cone(node, total_prefixs, total_ip_space, total_as_number):
     # keep track of the nodes we have visited
-
     visited = []
     queue = node.customers
     # traverse through the tree
-    visited.append(node) # we visited the top node
-    queue += node.customers # we need to create a queue to visit other nodes
-    customer_cone = 0 # this is the metric we are measuring by
-    for traversal_node in queue: # we will visit each node in the queue
-        if  traversal_node not in visited:
+    visited.append(node)  # we visited the top node
+    queue += node.customers  # we need to create a queue to visit other nodes
+    customer_cone_number_of_ases = 0  # this is the metric we are measuring by
+    for traversal_node in queue:  # we will visit each node in the queue
+        if traversal_node not in visited:
             visited.append(traversal_node)
             queue += traversal_node.customers
-            customer_cone += 1
+            customer_cone_number_of_ases += 1
 
-    print(str(customer_cone))
+    print("Number of ASes:", customer_cone_number_of_ases)
+    print("Number of Prefixes:", len(node.prefixs))
+    print("Number of Addresses:", node.ip_space)
+    print("Percentage of ASes", customer_cone_number_of_ases / total_as_number)
+    print("Percentage of Prefixes", len(node.prefixs) / total_prefixs)
+    print("Percentage of IP Space Size", len(node.ip_space) / total_ip_space)
 
-def customer_cone_for_top_AS(sorted_as_list):
+
+
+def customer_cone_for_top_AS(sorted_as_list, total_prefixs, total_ip_space, total_as_number):
     for _as in sorted_as_list:
         print("###################Customer Cone for AS:", str(_as.number), "######################################")
-        customer_cone(_as)
+        customer_cone(_as, total_prefixs, total_ip_space, total_as_number)
         print("#################################################################################")
 
 
@@ -380,8 +398,7 @@ def load_data():
 def run():
     start_time = time.time()
     sys.setrecursionlimit(1000000)
-    # as_list = section_2b("20211001.as-rel2.txt")
-    as_list = section_2b("testfor2b.txt")
+    as_list = section_2b("20211001.as-rel2.txt")
     # choice = input(
     #     "Do you want to collect data or view the graphs of previously collected data? (y for collect data/n for view graphs)")
     # if choice.strip() == 'y':
@@ -394,20 +411,19 @@ def run():
     #     print(as_list[0].number)
     #     print(as_list[len(as_list) - 1].number)
     # fix
-    # as_classification()
-    # list_obj = section_2b("testfor2b.txt")
-    # histogram(as_list, "Global Node Degree", 'Global')
-    # histogram(as_list, "Customer Degree", 'Customer')
-    # histogram(as_list, "Peer Degree", 'Peer')
-    # histogram(as_list, "Provider Degree", 'Provider')
-    # piechart_2(list_obj, 'Percentage Distribution of Autonomous System Classes in 2021 According to Link Traversal')
-    # parse_prefix_file('prefixtest.txt', as_list)
-    # prefix_histogram(as_list, "test")
-    # proj2_c(as_list)
-
-    as_list_sorted = sorted(as_list, key=lambda x: x.glob, reverse=True)  # sorted list (R)
+    as_classification()
+    list_obj = section_2b("testfor2b.txt")
+    histogram(as_list, "Global Node Degree", 'Global')
+    histogram(as_list, "Customer Degree", 'Customer')
+    histogram(as_list, "Peer Degree", 'Peer')
+    histogram(as_list, "Provider Degree", 'Provider')
+    piechart_2(list_obj, 'Percentage Distribution of Autonomous System Classes in 2021 According to Link Traversal')
+    parse_prefix_file('prefixtest.txt', as_list)
+    prefix_histogram(as_list, "test")
+    as_list_sorted, total_prefixs, total_ip_space = proj2_c(as_list)
     print(str(as_list[0].number))
-    customer_cone_for_top_AS(as_list_sorted[:15])
+    total_as_number = len(as_list_sorted)
+    customer_cone_for_top_AS(as_list_sorted[:15], total_prefixs, total_ip_space, total_as_number)
 
     print("--- %s seconds ---" % (time.time() - start_time))
 
