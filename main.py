@@ -120,6 +120,7 @@ def inc_degree(as_1, as_2, classification):
         as_1.prov += 1
         as_1.customers.append(as_2)  # as1 is the provider to as2, therefore we will add as2 to as1s customer list
         as_2.providers.append(as_1)  # as2 is a provider
+        as_2.prov += 1
         as_2.p2c += 1
 
     as_1.glob += 1
@@ -160,7 +161,7 @@ def section_2b(filename):
 
             inc_degree(temp_as1, temp_as2, split_line[2])  # function to handle altering respective private variables
         i += 1
-        if i > 500000:
+        if i > 300000:
             break
         print(i)
 
@@ -168,14 +169,17 @@ def section_2b(filename):
 
 
 def piechart_2(_as_list, title):
-    data = [0, 0, 0]  # Enterprise, Content, Transit
+    data = [0, 0, 0]  # Transit, Content, Enterprise
     for _as in _as_list:
+        # enterprise
         if _as.p2p == 0 and _as.p2c == 0:
-            data[0] += 1
+            data[2] += 1
+        # content
         if _as.p2p >= 1 and _as.p2c == 0:
             data[1] += 1
+        # transit
         if _as.p2c >= 1:
-            data[2] += 1
+            data[0] += 1
     pie_chart(data, title)
 
 
@@ -183,7 +187,7 @@ def find(as_number, as_list):
     for _as in as_list:  # go through the list of as
         if _as.number == as_number:  # find the matching as
             return _as  # return the as
-        return None
+    return None
 
 
 def parse_prefix_file(file, as_list):
@@ -192,24 +196,27 @@ def parse_prefix_file(file, as_list):
     k = 0
     for line in file:
         line = (line.strip()).split('\t')  # [IP prefix, prefix length, AS]
-        if '_' in line[2]:  # we have a multi origin AS
+        print(line)
+        if '_' in line[2] and ',' not in line[2]:  # we have a multi origin AS
             multi_origin_as = line[2].split('_')
+            print(multi_origin_as)
             # _as.ip_space += 2 ** int(line[1]) - 1  # adding to the IP space size
-            try:
-                # in the case of a multi origin as
-                for multi_as in multi_origin_as:
-                    _as = find(int(multi_as), as_list)  # return the _as
-                    _as.ip_space += 2 ** (32 - int(line[1]))  # adding to the IP space size 2**(32 - (prefix length))
-                    _as.prefixs.append(line[0])  # number of prefixes
-            except _as is None:
-                print("AS number", line[2], "is not a valid AS")
-                k += 1
+            # in the case of a multi origin as
+            _as = find(int(multi_origin_as[0]), as_list)  # return the _as
+            if(_as != None):
+                _as.ip_space += 2 ** (32 - int(line[1]))  # adding to the IP space size
+                _as.prefixs.append(line[0])  # number of prefixes
+            if type(_as) != None:
+                print("Found")
         else:  # single origin as
             try:
                 _as = find(int(line[2]), as_list)  # return the _as
-                _as.ip_space += 2 ** (32 - int(line[1]))  # adding to the IP space size
-                _as.prefixs.append(line[0])  # number of prefixes
-            except _as is None:
+                if (_as != None):
+                    _as.ip_space += 2 ** (32 - int(line[1]))  # adding to the IP space size
+                    _as.prefixs.append(line[0])  # number of prefixes
+                if type(_as) != None:
+                    print("Found")
+            except:
                 print("AS number", line[2], "is not a valid AS")
                 k += 1
 
@@ -221,7 +228,7 @@ def parse_prefix_file(file, as_list):
 def prefix_histogram(as_list, title):
     data = []
     for _as in as_list:
-        data.append(_as.prefix_space_size)
+        data.append(_as.ip_space)
     print(max(data))
     hist, bin_edges = np.histogram(data)  # histogram
     fig, ax = plt.subplots()
@@ -310,15 +317,26 @@ def customer_cone(node, total_prefixs, total_ip_space, total_as_number):
     print("Number of ASes:", customer_cone_number_of_ases)
     print("Number of Prefixes:", len(node.prefixs))
     print("Number of Addresses:", node.ip_space)
-    print("Percentage of ASes", customer_cone_number_of_ases / total_as_number)
-    print("Percentage of Prefixes", len(node.prefixs) / total_prefixs)
-    print("Percentage of IP Space Size", len(node.ip_space) / total_ip_space)
+    try:
+        print("Percentage of ASes", customer_cone_number_of_ases / total_as_number)
+    except ZeroDivisionError:
+        print("Division by zero")
+    try:
+        print("Percentage of Prefixes", len(node.prefixs) / total_prefixs)
+    except ZeroDivisionError:
+        print("Division by zero")
+    try:
+        print("Percentage of IP Space Size", node.ip_space / total_ip_space)
+    except ZeroDivisionError:
+        print("Division by zero")
 
 
 
 def customer_cone_for_top_AS(sorted_as_list, total_prefixs, total_ip_space, total_as_number):
     for _as in sorted_as_list:
         print("###################Customer Cone for AS:", str(_as.number), "######################################")
+        print("AS Name:", _as.name)
+        print("AS Global Degree:", _as.glob)
         customer_cone(_as, total_prefixs, total_ip_space, total_as_number)
         print("#################################################################################")
 
@@ -411,19 +429,18 @@ def run():
     #     print(as_list[0].number)
     #     print(as_list[len(as_list) - 1].number)
     # fix
-    as_classification()
-    list_obj = section_2b("testfor2b.txt")
-    histogram(as_list, "Global Node Degree", 'Global')
-    histogram(as_list, "Customer Degree", 'Customer')
-    histogram(as_list, "Peer Degree", 'Peer')
-    histogram(as_list, "Provider Degree", 'Provider')
-    piechart_2(list_obj, 'Percentage Distribution of Autonomous System Classes in 2021 According to Link Traversal')
+    # as_classification()
+    # histogram(as_list, "Global Node Degree", 'Global')
+    # histogram(as_list, "Customer Degree", 'Customer')
+    # histogram(as_list, "Peer Degree", 'Peer')
+    # histogram(as_list, "Provider Degree", 'Provider')
+    # piechart_2(as_list, 'Percentage Distribution of Autonomous System Classes in 2021 According to Link Traversal')
     parse_prefix_file('prefixtest.txt', as_list)
     prefix_histogram(as_list, "test")
-    as_list_sorted, total_prefixs, total_ip_space = proj2_c(as_list)
+    as_list_sorted, total_prefixes, total_ip_space = proj2_c(as_list)
     print(str(as_list[0].number))
     total_as_number = len(as_list_sorted)
-    customer_cone_for_top_AS(as_list_sorted[:15], total_prefixs, total_ip_space, total_as_number)
+    customer_cone_for_top_AS(as_list_sorted[:15], total_prefixes, total_ip_space, total_as_number)
 
     print("--- %s seconds ---" % (time.time() - start_time))
 
